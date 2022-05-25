@@ -8,8 +8,13 @@ classdef TruthSim
         dt
         iter
         state_hist
+        meas_hist
         Interface
+        Map
         x
+        % px, py, theta, vx, vy, omega
+        % theta is relative to inertial x-axis
+        % omega is strictly in inertial z-axis
         w_mean
         Q
         m
@@ -18,20 +23,19 @@ classdef TruthSim
         F_ext
         M_int
         M_ext
-        Cq
-        D
-        rho_air
     end
 
     methods
-        function obj = TruthSim(dt,num_iter)
+        function obj = TruthSim(dt,num_iter, map_coord)
             %UNTITLED2 Construct an instance of this class
             %   Detailed explanation goes here
             obj.StateDim = 6;
-            obj.MeasDim = 6;
+            obj.MeasDim = 3;
             obj.dt = dt;
-            obj.state_hist = zeros(obj.StateDim, num_iter)
+            obj.state_hist = zeros(obj.StateDim, num_iter);
+            obj.meas_hist = zeros(obj.MeasDim, num_iter);
             obj.Interface = None;
+            obj.Map = ObstacleMap(map_coord);
             obj.initialize_properties(obj)
         end
 
@@ -40,7 +44,7 @@ classdef TruthSim
             %   Detailed explanation goes here
             
             obj.compute_input_wrench();
-            obj.computer_external_wrench();
+            obj.compute_external_wrench();
             u = zeros(3,1);
             u(1:2) = obj.F_int + obj.F_ext;
             u(3) = obj.M_int + obj.M_ext;
@@ -50,12 +54,43 @@ classdef TruthSim
             k3 = obj.transition(t + obj.dt/2, obj.x + obj.dt/2 * k2, u);
             k4 = obj.transition(t + obj.dt,   obj.x + obj.dt * k3,   u);
     
-            x_next = obj.x + 1/6 * obj.dt * (k1 + 2*k2 + 2*k3 + k4);
+            del_x = 1/6 * (k1 + 2*k2 + 2*k3 + k4);
+
+            x_next = obj.x +  obj.dt * del_x;
             x_next = x_next + mvnrnd(obj.w_mean, obj.Q, 1)';
     
-            obj.iter = obj.iter + 1;
-            obj.state_hist(:,obj.iter) = x_next;
+            [hitsWall, wall_normal] = obj.Map.hit_wall(x_next(1:2));
+            % consider including obj.x, or outputting equation of wall
+            % intersection can be used to find position of robot against
+            % wall.
+
+            if hitsWall
+
+                % parallel velocity is retained
+                %
+                % perpendicular velocity goes to zero plus some noise in
+                % the opposite direction
+                % potential distance from wall to simulate "bounce"
+                %
+                % compute force (acceleration) felt by robot
+
+            else
+                obj.iter = obj.iter + 1;
+                obj.state_hist(:,obj.iter) = x_next;
+    
+                acc_noisy = (x_next(4:5) - obj.x(4:5))/obj.dt;
+    
+                obj.Interface.setMeasAccel(acc_noisy);
+                obj.Interface.setMeasAngRate(x_next(6));
+    
+                obj.meas_hist(:,obj.iter) = [acc_noisy; x_next(6)];
+
+            end
+
+
+
             obj.x = x_next;
+
         end
 
 
@@ -73,11 +108,9 @@ classdef TruthSim
 
         function obj = compute_input_wrench(obj)
     
-            u = obj.Interface.get_control_force_and_moment();
-            obj.F_int(1) = u(1);
-            obj.F_int(2) = u(2);
-    
-            obj.M_int = u(3);
+            obj.F_int = obj.Interface.getControlForce();
+            obj.M_int = obj.Interface.getControlMoment();
+
         end
     
         function obj = compute_external_wrench(obj)
@@ -96,10 +129,10 @@ classdef TruthSim
             obj.M_int = 0;
             obj.M_ext = 0;
 
-            % propeller properties
-            obj.Cq = 0.008;
-            obj.D = 0.2286;
-            obj.rho_air = 1.18;
+            %% propeller properties
+            %obj.Cq = 0.008;
+            %obj.D = 0.2286;
+            %obj.rho_air = 1.18;
         end
 
     end
