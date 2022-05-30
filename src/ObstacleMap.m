@@ -27,12 +27,73 @@ classdef ObstacleMap
             %obj.line_c = line_c;
         end
 
-        function [hitsWall, min_wall_normal] = hit_wall(obj,r)
+        function [hitsWall, wall_normal, collision_loc] = hit_wall(obj,r_pre, r)
+            count_intersection = 0;
+            ray = zeros(1,3);
+            rel_vec = r_pre - r;
+            ray(1:2) = [rel_vec(2), -rel_vec(1)]; % randn(1,2);
+            ray(3) = -1 * ray(1:2) * reshape(r,[2,1]);
+            %disp(ray)
+            closest_intersection = r;
+            closest_wall = 0;
+
+            hitsWall = false;
+            for i = 1:length(obj.coeff)
+                l = obj.coeff(i,:);
+                P_h = cross(l, ray);
+                p = [P_h(1)/P_h(3); P_h(2)/P_h(3)];
+
+                ipp = mod(i, length(obj.coeff)) + 1;
+                if obj.num_between(p(1), r_pre(1), r(1)) && ...
+                        obj.num_between(p(2), r_pre(2), r(2)) && ...
+                        obj.num_between(p(1), obj.corners(i,1), obj.corners(ipp,1)) && ...
+                        obj.num_between(p(2), obj.corners(i,2), obj.corners(ipp,2))
+
+                    hitsWall = true;
+                    count_intersection = count_intersection + 1;
+                    disp(p)
+                    disp(r_pre)
+                    disp(r)
+                    disp(closest_intersection)
+                    disp(norm(p-r_pre))
+                    disp(norm(closest_intersection - r_pre))
+                    if norm(p-r_pre) <= norm(closest_intersection - r_pre)
+                        closest_intersection = p;
+                        closest_wall = i;
+                    end
+                end
+             end
+            
+            wall_normal = [0; 0];
+            if hitsWall
+                disp('Hit Wall')
+                disp(closest_wall)
+                r_h = [r(1), r(2), 1];
+                a = obj.coeff(closest_wall,1);
+                b = obj.coeff(closest_wall,2);
+                rel_vec = r_pre - closest_intersection;
+                sgn = 1;
+                if rel_vec(1)*a + rel_vec(2)*b < 0
+                    sgn = -1;
+                end
+                wall_normal = obj.coeff(closest_wall,1:2);
+                wall_normal = sgn * wall_normal/norm(wall_normal);
+            end
+
+            collision_loc = closest_intersection;
+            wall_normal = reshape(wall_normal, 2,1);
+        end
+
+
+
+
+
+        function [hitsWall, min_wall_normal] = outside_map(obj, r)
             %METHOD1 Summary of this method goes here
             %   Detailed explanation goes here
             count_intersection = 0;
             ray = zeros(1,3);
-            ray(1:2) = [-0.1924    0.8886]; % randn(1,2);
+            ray(1:2) = randn(1,2);
             ray(3) = -1 * ray(1:2) * reshape(r,[2,1]);
             %disp(ray)
             intersecting_walls = [];

@@ -28,7 +28,7 @@ classdef RobotInterface
             obj.v_mean = zeros(obj.MeasDim,1);
             obj.R = 0.1 * eye(obj.MeasDim);
 
-            obj.Force = [0, 0];
+            obj.Force = [0; 0];
             obj.Moment = 0;
         end
 

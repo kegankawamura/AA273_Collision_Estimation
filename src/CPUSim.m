@@ -33,17 +33,20 @@ classdef CPUSim
             obj.dt = dt;
             obj.state_hist = zeros(obj.StateDim, num_iter);
             obj.error_hist = zeros(obj.StateDim, obj.StateDim, num_iter);
-            obj.meas_hist = zero(obj.MeasDim, num_iter);
-            obj.Interface = None;
-            obj.initialize_properties(obj)
+            obj.meas_hist = zeros(obj.MeasDim, num_iter);
+            obj.Interface = NaN;
+            obj = obj.initialize_properties();
         end
 
         function obj = run_one_timestep(obj, t)
             %METHOD1 Summary of this method goes here
             %   Detailed explanation goes here
 
-            disp('Run State Estimation...')
-            disp('Output Control...')
+            %disp('Run State Estimation...')
+            %disp('Output Control...')
+
+            obj.Interface.setControlForce([0;0]);
+            obj.Interface.setControlMoment(0);
 
         end
       
