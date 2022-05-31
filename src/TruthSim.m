@@ -131,7 +131,8 @@ classdef TruthSim
                 acc_noisy = (x_next(4:5) - obj.x(4:5))/obj.dt;
     
                 obj.Interface.setMeasAccel(acc_noisy);
-                obj.Interface.setMeasAngRate(x_next(6));
+                obj.Interface.setMeasAngRate(x_next(6));.
+                
                 obj.meas_hist(:,obj.iter) = [acc_noisy; x_next(6)];
 
             end
