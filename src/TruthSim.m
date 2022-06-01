@@ -12,13 +12,16 @@ classdef TruthSim
         Interface
         Map
         x
-        % px, py, theta, vx, vy, omega
+        % px, py, theta, vx, vy, omega, bax,bay,bw
         % theta is relative to inertial x-axis
         % omega is strictly in inertial z-axis
         w_mean
         Q
         m
         I
+        % accelerometer and gyro true bias rates, alpha<1
+        alpha_b
+        alpha_w
         F_int
         F_ext
         M_int
@@ -29,7 +32,7 @@ classdef TruthSim
         function obj = TruthSim(dt,num_iter, map_coord)
             %UNTITLED2 Construct an instance of this class
             %   Detailed explanation goes here
-            obj.StateDim = 6;
+            obj.StateDim = 9; %6;
             obj.MeasDim = 3;
             obj.dt = dt;
             obj.iter = 0;
@@ -52,9 +55,6 @@ classdef TruthSim
         end
 
         function obj = propagate_one_timestep(obj, t)
-            %METHOD1 Summary of this method goes here
-            %   Detailed explanation goes here
-            
             obj = obj.compute_input_wrench();
             obj = obj.compute_external_wrench();
             u = zeros(3,1);
@@ -107,7 +107,7 @@ classdef TruthSim
 
                 post_v_perp = -1*abs(bounce_coeff)*v_perp;
 
-                acc_avg = (post_v_perp-v_perp)/obj.dt; % momentum change in perp direction
+                acc = (post_v_perp-v_perp)/obj.dt; % momentum change in perp direction
 
 
                 %disp(x_next(1:2))
@@ -117,41 +117,41 @@ classdef TruthSim
                 x_next(4:5) = post_v_perp + v_paral;
                 x_next(1:2) = collision_loc + post_dt * x_next(4:5) + wall_normal*1e-6; % add bias to prevent clipping through wall
                 
-                obj.iter = obj.iter + 1;
-                obj.state_hist(:,obj.iter) = x_next;
-
-                obj.Interface.setMeasAccel(acc_avg);
-                obj.Interface.setMeasAngRate(x_next(6));
-                obj.meas_hist(:,obj.iter) = [acc_avg; x_next(6)];
-
             else
-                obj.iter = obj.iter + 1;
-                obj.state_hist(:,obj.iter) = x_next;
-    
-                acc_noisy = (x_next(4:5) - obj.x(4:5))/obj.dt;
-    
-                obj.Interface.setMeasAccel(acc_noisy);
-                obj.Interface.setMeasAngRate(x_next(6));.
-                
-                obj.meas_hist(:,obj.iter) = [acc_noisy; x_next(6)];
-
+                acc = (x_next(4:5) - obj.x(4:5))/obj.dt;
             end
+
+            obj.iter = obj.iter + 1;
+            obj.state_hist(:,obj.iter) = x_next;
+
+            b_a = x_next(7:8);
+            b_w = x_next(9);
+            th = x_next(3);
+            R = [cos(th), sin(th);
+                   -sin(th), cos(th)];
+            acc_meas = R*acc + b_a;
+            gyro_meas = x_next(6) + b_w;
+
+            obj.Interface.setMeasAccel(acc_meas);
+            obj.Interface.setMeasAngRate(gyro_meas);.
+            obj.meas_hist(:,obj.iter) = [acc_meas; gyro_meas];
 
             obj.x = x_next;
 
         end
 
 
+        % biases are first order markov processes (Ornstein-Uhlenbeck to be more precise) 
         function dx = transition( obj, t, x, u)
             state_shape = size(x);
             dx = zeros(state_shape);
-            dx(1) = x(4);
-            dx(2) = x(5);
-            dx(3) = x(6);
+            dx(1:3) = x(4:6);
     
             dx(4) = x(6)*x(5) + u(1)/obj.m;
             dx(5) = -x(6)*x(4) + u(2)/obj.m;
             dx(6) = u(3)/obj.I;
+            dx(7:8) = x(7:8)*(obj.alpha_b-1);
+            dx(9) = x(9)*(obj.alpha_w-1);
         end
 
         function obj = compute_input_wrench(obj)
@@ -170,9 +170,13 @@ classdef TruthSim
             obj.x = zeros(obj.StateDim,1);
             obj.w_mean = zeros(obj.StateDim,1);
             obj.Q = zeros(obj.StateDim);
-            obj.Q(obj.StateDim/2+1:obj.StateDim, obj.StateDim/2+1:obj.StateDim) = obj.dt * 0.1 * eye(obj.StateDim/2);
+            %obj.Q(obj.StateDim/2+1:obj.StateDim, obj.StateDim/2+1:obj.StateDim) = obj.dt * 0.1 * eye(obj.StateDim/2);
+            obj.Q = obj.dt*blkdiag( zeros(3), 0.1*eye(3), 1*eye(2), 0.5);
+
             obj.m = 4.036;
             obj.I = 0.09;
+            obj.alpha_b = 0.3;
+            obj.alpha_w = 0.15;
             obj.F_int = zeros(2,1);
             obj.F_ext = zeros(2,1);
             obj.M_int = 0;
