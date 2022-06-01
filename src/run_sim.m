@@ -35,14 +35,12 @@ truth = truth.setProcessNoise(zeros(6,1), Q);
 
 % state:
 % 1:2 [x,y,      2d position 
-% 3:4  vx,vy,    2d velocity
-% 5    th,       heading
+% 3    th,       heading
+% 4:5  vx,vy,    2d velocity
 % 6    om,       angular rate ccw
-% 7    b_a       accelerometer bias
-% 8    b_w       gyro bias
-% 9:10 F_hatx,F_haty    estimated force
-% 11   M_hat        estimated moment
-mu_0 = zeros(11,1);
+% 7:8  b_ax,b_ay accelerometer bias
+% 9    b_w       gyro bias
+mu_0 = zeros(9,1);
 %mu_0 = [5;5;2;0;pi/4;0;0;0;0;0;0];
 mu_0(1:2) = [5;5];
 mu_0(3:4) = [2;0];
@@ -84,8 +82,6 @@ hold on
 plot(show_map_coord(:,1), show_map_coord(:,2))
 plot(truth_state(1,:), truth_state(2,:))
 hold off
-
-%%
 
 figure
 subplot(3,1,1)
