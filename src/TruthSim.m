@@ -127,9 +127,9 @@ classdef TruthSim
             b_a = x_next(7:8);
             b_w = x_next(9);
             th = x_next(3);
-            R = [cos(th), sin(th);
+            dcm = [cos(th), sin(th);
                    -sin(th), cos(th)];
-            acc_meas = R*acc + b_a;
+            acc_meas = dcm*acc + b_a;
             gyro_meas = x_next(6) + b_w;
 
             obj.Interface.setMeasAccel(acc_meas);
@@ -147,8 +147,9 @@ classdef TruthSim
             dx = zeros(state_shape);
             dx(1:3) = x(4:6);
     
-            dx(4) = x(6)*x(5) + u(1)/obj.m;
-            dx(5) = -x(6)*x(4) + u(2)/obj.m;
+            %dx(4) = x(6)*x(5) + u(1)/obj.m;
+            %dx(5) = -x(6)*x(4) + u(2)/obj.m;
+            dx(4:5) = u(1:2)/obj.m;
             dx(6) = u(3)/obj.I;
             dx(7:8) = x(7:8)*(obj.alpha_b-1);
             dx(9) = x(9)*(obj.alpha_w-1);
@@ -173,10 +174,11 @@ classdef TruthSim
             %obj.Q(obj.StateDim/2+1:obj.StateDim, obj.StateDim/2+1:obj.StateDim) = obj.dt * 0.1 * eye(obj.StateDim/2);
             obj.Q = obj.dt*blkdiag( zeros(3), 0.1*eye(3), 1*eye(2), 0.5);
 
-            obj.m = 4.036;
-            obj.I = 0.09;
-            obj.alpha_b = 0.3;
-            obj.alpha_w = 0.15;
+            robot_params;
+            obj.m = robot_params.m;
+            obj.I = robot_params.I;
+            obj.alpha_b = robot_params.alpha_b;
+            obj.alpha_w = robot_params.alpha_w;
             obj.F_int = zeros(2,1);
             obj.F_ext = zeros(2,1);
             obj.M_int = 0;
