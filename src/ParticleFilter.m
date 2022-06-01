@@ -31,16 +31,26 @@ classdef ParticleFilter < handle
             obj.Sigma = sigma_0;
         end
 
+        function [] = initialize_particles(obj,particles)
+            obj.N = numel(particles.W);
+            obj.particles = particles;
+            W = particles.W; X = particles.X;
+            obj.Mu = sum(W.*X,2);
+            obj.Sigma = (W.*(X-mu))*(X-mu)';
+        end
+
         function [] = predict(obj,u_t)
             system = obj.system;
             params = system.params;
             particles = obj.particles;
             X_t = particles.X;
 
-            W_noise = ParticleFilter.sample_normal(...
-                zeros(size(X_t(:,1))),...
-                system.Qmodel,obj.N);
-            X_t1 = system.dyn(X_t,u_t,params) + W_noise;
+            % system.transition defines a stochastic transition model (e.g. simplified collision model) 
+            X_t1 = system.transition(X_t,u_t,params);
+            %W_noise = ParticleFilter.sample_normal(...
+            %    zeros(size(X_t(:,1))),...
+            %    system.Qmodel,obj.N);
+            %X_t1 = system.dyn(X_t,u_t,params) + W_noise;
 
             obj.particles.X = X_t1;
             obj.last_step = 'predict';
@@ -74,7 +84,7 @@ classdef ParticleFilter < handle
             obj.Sigma(:,:,end+1) = sigma;
         end
 
-        function [] = importance_resample(obj);
+        function [idx] = importance_resample(obj);
             X = obj.particles.X;
             W = obj.particles.W;
             pdf = cumsum(W);

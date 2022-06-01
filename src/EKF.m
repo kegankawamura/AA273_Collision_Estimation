@@ -1,4 +1,4 @@
-classdef EKF < handle
+classdef EKF %< handle % hopefully not a handle will make this easier
     properties
         type = 'EKF'
         system
@@ -6,6 +6,8 @@ classdef EKF < handle
         mu_current;
         sigma_current;
         last_step = '';
+        num = 0;
+        p_yj;
 
         % results of filter, after update step
         Mu
@@ -42,7 +44,11 @@ classdef EKF < handle
 
         function [mu_1,sigma_1] = update(obj,u_t,y_t)
             system = obj.system;
+            % some shenanigans right here
+            % params needs to stay as a primitive
             params = system.params;
+            params.num = obj.num;
+
             mu_p = obj.mu_current;
             sigma_p = obj.sigma_current;
             C = system.C(mu_p,u_t,params);
@@ -50,13 +56,16 @@ classdef EKF < handle
             Q = system.Qmodel;
             R = system.Rmodel;
 
-            K_t = sigma_p*C'*(C*sigma_p*C'+R)^-1;
+            innov = y_t - system.meas(mu_p,u_t,params);
+            sigma_y_inv = (C*sigma_p*C'+R)^-1;
+
+            K_t = sigma_p*C'*sigma_y_inv;
 
             %innov = y_t-system.meas(mu_p,u_t,params)
             %if norm(innov)>2
             %    %keyboard
             %end
-            mu_1 = mu_p + K_t*( y_t-system.meas(mu_p,u_t,params) );
+            mu_1 = mu_p + K_t*innov;
             sigma_1 = sigma_p - K_t*C*sigma_p;
 
             obj.mu_current = mu_1;
@@ -65,6 +74,9 @@ classdef EKF < handle
 
             obj.Mu(:,end+1) = mu_1;
             obj.Sigma(:,:,end+1) = sigma_1;
+            eta = 1/sqrt( det(2*pi*sigma_y_inv)^-1 );
+            py = eta*exp(-0.5*innov'*sigma_y_inv*innov);
+            obj.p_yj = py;
 
         end
     end
