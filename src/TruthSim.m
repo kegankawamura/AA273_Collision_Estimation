@@ -19,6 +19,7 @@ classdef TruthSim
         Q
         m
         I
+        R
         % accelerometer and gyro true bias rates, alpha<1
         alpha_b
         alpha_w
@@ -74,7 +75,7 @@ classdef TruthSim
             x_next = obj.x +  obj.dt * del_x;
             x_next = x_next + mvnrnd(obj.w_mean, obj.Q, 1)';
     
-            [hitsWall, wall_normal, collision_loc] = obj.Map.hit_wall(obj.x(1:2), x_next(1:2));
+            [hitsWall, wall_normal, collision_loc] = obj.Map.hit_wall(obj.x(1:2), x_next(1:2), obj.R);
             % consider including obj.x, or outputting equation of wall
             % intersection can be used to find position of robot against
             % wall.
@@ -102,6 +103,8 @@ classdef TruthSim
                 %disp(dot(wall_normal, obj.x(4:5)))
                 v_perp = wall_normal * dot(wall_normal, obj.x(4:5));
                 v_paral = obj.x(4:5) - v_perp;
+
+                obj.x(6)
 
                 bounce_coeff = randn/30; % std dev is approx. 0.001
 
@@ -175,6 +178,7 @@ classdef TruthSim
 
             obj.m = 4.036;
             obj.I = 0.09;
+            obj.R = 0.2; %m
             obj.alpha_b = 0.3;
             obj.alpha_w = 0.15;
             obj.F_int = zeros(2,1);

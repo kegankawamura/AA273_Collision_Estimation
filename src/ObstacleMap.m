@@ -27,7 +27,7 @@ classdef ObstacleMap
             %obj.line_c = line_c;
         end
 
-        function [hitsWall, wall_normal, collision_loc] = hit_wall(obj,r_pre, r)
+        function [hitsWall, wall_normal, collision_loc] = hit_wall(obj,r_pre, r, R)
             count_intersection = 0;
             ray = zeros(1,3);
             rel_vec = r_pre - r;
@@ -40,14 +40,22 @@ classdef ObstacleMap
             hitsWall = false;
             for i = 1:length(obj.coeff)
                 l = obj.coeff(i,:);
+                denom = sqrt(l(1)^2 + l(2)^2);
                 P_h = cross(l, ray);
                 p = [P_h(1)/P_h(3); P_h(2)/P_h(3)];
 
+                A = [l(1) l(2);
+                     ray(1) ray(2)];
+
+                b1 = [R*denom - l(3); -ray(3)];
+                b2 = [-R*denom - l(3); -ray(3)];
+
                 ipp = mod(i, length(obj.coeff)) + 1;
-                if obj.num_between(p(1), r_pre(1), r(1)) && ...
+                if (obj.num_between(p(1), r_pre(1), r(1)) && ...
                         obj.num_between(p(2), r_pre(2), r(2)) && ...
                         obj.num_between(p(1), obj.corners(i,1), obj.corners(ipp,1)) && ...
-                        obj.num_between(p(2), obj.corners(i,2), obj.corners(ipp,2))
+                        obj.num_between(p(2), obj.corners(i,2), obj.corners(ipp,2))) || ...
+                        R >= abs(l(1)*r(1) + l(2)*r(2) +l(3))/denom
 
                     hitsWall = true;
                     count_intersection = count_intersection + 1;
@@ -71,6 +79,8 @@ classdef ObstacleMap
                 r_h = [r(1), r(2), 1];
                 a = obj.coeff(closest_wall,1);
                 b = obj.coeff(closest_wall,2);
+                c = obj.coeff(closest_wall,3);
+                denom = sqrt(a^2 + b^2);
                 rel_vec = r_pre - closest_intersection;
                 sgn = 1;
                 if rel_vec(1)*a + rel_vec(2)*b < 0
@@ -78,9 +88,22 @@ classdef ObstacleMap
                 end
                 wall_normal = obj.coeff(closest_wall,1:2);
                 wall_normal = sgn * wall_normal/norm(wall_normal);
+
+                A = [a b;
+                     ray(1) ray(2)];
+
+                b1 = [R*denom - c; -ray(3)];
+                b2 = [-R*denom - c; -ray(3)];
+                
+                p_rollback = A\b1;
+                if ~obj.num_between(p_rollback(1), r_pre(1), closest_intersection(1)) || ...
+                    ~obj.num_between(p_rollback(2), r_pre(2), closest_intersection(2))
+                    p_rollback = A\b2;
+                end
+
             end
 
-            collision_loc = closest_intersection;
+            collision_loc = p_rollback;
             wall_normal = reshape(wall_normal, 2,1);
         end
 
