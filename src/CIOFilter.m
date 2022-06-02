@@ -48,10 +48,6 @@ classdef CIOFilter < handle
             obj.ekfs(1).system.params.F_hat = obj.F_hat_hist(:,end);
             obj.ekfs(1).system.params.M_hat = obj.M_hat_hist(:,end);
 
-            figure(1); clf; hold on;
-            obj.pf.plot_particles(1,2,1);
-            plot( [obj.pf.system.params.Map.corners(:,1);obj.pf.system.params.Map.corners(1,1)],...
-                [obj.pf.system.params.Map.corners(:,2);obj.pf.system.params.Map.corners(1,2)]);
 
         end
 
@@ -82,14 +78,24 @@ classdef CIOFilter < handle
             % particle filter update a-la fast slam
             % idea: use F and M and the wall normals from collisions as additional weighting, since force estimates dont work super well in ekf
             W_bar = [obj.ekfs.p_yj];
-            if sum(W_bar==0)>0.5*obj.N
+            alive = (W_bar>1e-10);
+            if (sum(alive)>=0.25*obj.N)
+                obj.ekf_mu_0 = mean([obj.ekfs(alive).mu_current].*W_bar(alive),2);
+                obj.ekf_sigma_0 = mean(...
+                    reshape([obj.ekfs(alive).sigma_current],5,5,[])... 
+                    .*reshape(W_bar(alive),1,1,[]),3);
+            end
+
+            if sum(W_bar==0)>0.75*obj.N
+                fprintf('%i particles were killed, resetting\n',obj.N-sum(alive))
                 % too many ekfs are implausible, wat do
                 % try to reset them to the prior
                 for i = 1:obj.N
-                    if W_bar(i)<1e-10
+                    if ~alive(i)
                         obj.ekfs(i).mu_current = obj.ekf_mu_0;
                         obj.ekfs(i).sigma_current = obj.ekf_sigma_0;
                         W_bar(i) = 1/obj.N;
+                        obj.pf.particles.X(:,i) = obj.pf.Mu;
                     end
                 end
                 keyboard
@@ -109,10 +115,15 @@ classdef CIOFilter < handle
                     obj.ekfs(i) = copy(ekfs_copy(idx_resample(i)));
                 end
             end
-            figure(1); clf; hold on;
-            obj.pf.plot_particles(1,2,1);
-            plot( [obj.pf.system.params.Map.corners(:,1);obj.pf.system.params.Map.corners(1,1)],...
-                [obj.pf.system.params.Map.corners(:,2);obj.pf.system.params.Map.corners(1,2)]);
+            ax = gca;
+            if numel(ax.Children)<2
+                obj.pf.plot_particles(1,2,1);
+                obj.pf_system.params.Map.plot_map();
+            else
+                set(ax.Children(3),'XData',obj.pf.particles.X(1,:));
+                set(ax.Children(3),'YData',obj.pf.particles.X(2,:));
+                drawnow;
+            end
 
                 if any(obj.pf.particles.X(1:2)>10) || any(obj.pf.particles.X(1:2)<0) 
                     keyboard

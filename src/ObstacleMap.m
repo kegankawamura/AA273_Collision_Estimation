@@ -196,6 +196,11 @@ classdef ObstacleMap < handle
                 P_h = cross(l, ray);
                 p = [P_h(1)/P_h(3), P_h(2)/P_h(3)];
                 ipp = mod(i, length(obj.coeff)) + 1;
+                for j = 1:2
+                    if obj.corners(i,j) == obj.corners(ipp,j)
+                        p(j) = obj.corners(i,j);
+                    end
+                end
                 if p(1) <= r(1) && ...
                         obj.num_between(p(1), obj.corners(i,1), obj.corners(ipp,1)) && ...
                         obj.num_between(p(2), obj.corners(i,2), obj.corners(ipp,2))
@@ -236,6 +241,11 @@ function in_wall = inside_wall(obj, r, R)
         end
         function is_between = num_between(obj, x, a, b)
             is_between = (x >= a && x <= b) || (x <= a && x >= b);
+        end
+
+        function plt = plot_map(obj)
+                plt = plot( [obj.corners(:,1);obj.corners(1,1)],...
+                    [obj.corners(:,2);obj.corners(1,2)]);
         end
     end
 end

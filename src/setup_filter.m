@@ -6,7 +6,7 @@ function [filter] = setup_filter(robot_params,map,mu_robot,sigma_robot)
     end
 
     % number of particles
-    N = 1000;
+    N = 2000;
 
 
     dt = robot_params.dt;
@@ -17,9 +17,9 @@ function [filter] = setup_filter(robot_params,map,mu_robot,sigma_robot)
     Q_robot = dt*blkdiag(0.5*eye(2), 0.5, 0.2*eye(2), 0.2);
     Q_omega_bounce = 0.3;
 
-    Q_ekf = blkdiag(0.5*eye(2),1,eye(2)*3);
+    Q_ekf = blkdiag(2*eye(2),2,eye(2)*3);
     % R is augmented with the force pseudomeasurements
-    R_ekf = 5*blkdiag(0.5*eye(3),1.5*eye(2),1);
+    R_ekf = 5*blkdiag(2*eye(3),3*eye(2),2);
     sigma_0_ekf = 10*eye(5);
 
     pf_params = robot_params;
@@ -58,8 +58,13 @@ function [particles] = initialize_filter_prior(filter,mu_robot,sigma_robot,mu_ek
     %P = [rand(N,2).*span + bounding_box(1,:)]';
 
     for i=1:N
-        while ~map.is_inside(P(1:2,i))
+        ntries = 0;
+        while ~map.is_valid_loc(P(1:2,i),robot_params.R)
             P(:,i) = mvnrnd(mu_robot,sigma_robot,1)';
+            ntries = ntries+1;
+            if ntries > 1000
+                keyboard
+            end
         end
     end
     particles = struct('X',P,'W',ones(1,N)*1/N);
@@ -96,40 +101,6 @@ function [X_t1s] = trans_model(X_ts,u_t,params)
     for i=1:size(X_ts,2)
         X_t1s(:,i) = TruthSim.collision_model(X_ts(:,i),params);
     end
-    % pass through point mass dynamics and gaussian noise
-    %w = mvnrnd(zeros(size(X_ts(:,1))),params.Q_robot,size(X_ts(1,:),2))';
-    %X_t1s = quad_dyn(X_ts,u_t,params) + w;
-
-    %% check for collision
-    %for i=1:size(X_ts,2)
-    %    X_prev = X_ts(:,i); X_next = X_t1s(:,i);
-
-    %    [hitsWall, wall_normal, collision_loc] = params.Map.hit_wall(X_prev(1:2),X_next(1:2),params.R);
-
-    %    if hitsWall
-    %        if X_prev(4) ~= 0
-    %            pre_dt = (collision_loc(1) - X_prev(1))/X_prev(4);
-    %            post_dt = params.dt - pre_dt;
-    %        else
-    %            pre_dt = (collision_loc(2) - X_prev(2))/X_prev(5);
-    %            post_dt = params.dt - pre_dt;
-    %        end
-    %        v_perp = wall_normal * (wall_normal'*X_prev(4:5));
-    %        v_paral  = X_prev(4:5)-v_perp;
-
-    %        % assumes perfect collision
-    %        post_v_perp = -1*v_perp;
-    %        %acc = (post_v_perp-v_perp)/dt;
-    %        X_next(4:5) = post_v_perp + v_paral;
-    %        X_next(1:2) = collision_loc + post_dt*X_next(4:5) + wall_normal*1e-6;
-
-    %        % noise in angular velocity due to bounce
-    %        X_next(6) = X_next(6) + randn()*params.Q_omega_bounce;
-    %    else
-    %        %acc = (X_next(4:5)-X_prev(4:5))/dt;
-    %    end
-    %    X_t1s(:,i) = X_next;
-    %end
 end
 
 % point mass linear dyn

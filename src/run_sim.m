@@ -10,9 +10,9 @@ iter = tf/dt;
 
 % Define map coordinates
 map_coord = [   0,  0;
-               10,  0;
-               10, 10;
-                0, 10];
+               3,  2;
+               5, 5;
+                3, 4];
 
 % output system
 %define_system
@@ -23,7 +23,7 @@ discrete = CPUSim(dt, iter);
 
 % create filter
 mu_0 = zeros(6,1);
-mu_0(1:2) = [5;5];
+mu_0(1:2) = [4;4];
 mu_0(3:4) = [2;0];
 mu_0(5:6) = [pi/4;0];
 sigma = eye(6);
@@ -36,7 +36,7 @@ discrete.Interface = inter;
 
 
 % Set custom initial conditions
-truth = truth.set_initial_state([5, 5, pi/4, 2, 0, 0, 0.5,0.5,0.2]);
+truth = truth.set_initial_state([4, 4, pi/4, 2, 0, 0, 0.5,0.5,0.2]);
 Q = zeros(9);
 Q = blkdiag( zeros(3), dt*0.01*eye(2), dt*0.001, 0.3*eye(3) );
 %Q(4:5, 4:5) = dt * 0.01 * eye(2);
@@ -65,17 +65,28 @@ sigma_0(9:11,9:11) = 0.1*dt*eye(3);
 %discrete = discrete.initialize_filter(mu_0, sigma_0);
 
 
+figure(1); clf; hold on;
+    ax = gca;
 % Simulate
 tic;
 for i = 1:iter
     if ~mod(i,10)
         t_elapse = toc;
         fprintf('completed %i / %i in %.1f sec \n',i,iter,t_elapse);
+        fprintf('true position is [%.2f;%.2f]\n',truth.x(1),truth.x(2));
         tic;
     end
     t = dt * i;
     truth = truth.propagate_one_timestep(t);
     discrete = discrete.run_one_timestep(t);
+
+    if numel(ax.Children)<3
+        scatter(truth.x(1),truth.x(2),50,'o','LineWidth',2);
+    else
+        set(ax.Children(1),'XData',truth.x(1));
+        set(ax.Children(1),'YData',truth.x(2));
+        drawnow;
+    end
 end
 
 

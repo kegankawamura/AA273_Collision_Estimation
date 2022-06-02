@@ -62,81 +62,87 @@ classdef TruthSim
             u = zeros(3,1);
             u(1:2) = obj.F_int + obj.F_ext;
             u(3) = obj.M_int + obj.M_ext;
-            
+
             k1 = obj.transition(t, obj.x, u);
             %k2 = obj.transition(t + obj.dt/2, obj.x + obj.dt/2 * k1, u);
             %k3 = obj.transition(t + obj.dt/2, obj.x + obj.dt/2 * k2, u);
             %k4 = obj.transition(t + obj.dt,   obj.x + obj.dt * k3,   u);
-    
+
             % 4th order Runge-Kutta causes robot to clip out of map without
             % more sophisticated logic
             %del_x = 1/6 * (k1 + 2*k2 + 2*k3 + k4);
             del_x = k1;
-            
+
             x_next = obj.x +  obj.dt * del_x;
             x_next = x_next + mvnrnd(obj.w_mean, obj.Q, 1)';
-    
-            [hitsWall, wall_normal, collision_loc] = obj.Map.hit_wall(obj.x(1:2), x_next(1:2), obj.R);
-            % consider including obj.x, or outputting equation of wall
-            % intersection can be used to find position of robot against
-            % wall.
 
-            if hitsWall
-                disp('collide!');
+            acc = (x_next(4:5) - obj.x(4:5))/obj.dt;
 
-                % parallel velocity is retained
-                %
-                % perpendicular velocity goes to zero plus some noise in
-                % the opposite direction
-                % potential distance from wall to simulate "bounce"
-                %
-                % compute force (acceleration) felt by robot
+            num_tries = 0; tries_thresh = 10;
+            while ~obj.Map.is_valid_loc(x_next(1:2),obj.R) && num_tries < tries_thresh
+                num_tries = num_tries+1;
+                [hitsWall, wall_normal, collision_loc] = obj.Map.hit_wall(obj.x(1:2), x_next(1:2), obj.R);
+                % consider including obj.x, or outputting equation of wall
+                % intersection can be used to find position of robot against
+                % wall.
 
-                if obj.x(4) ~= 0
-                    pre_dt = (collision_loc(1) - obj.x(1))/obj.x(4);
-                    post_dt = obj.dt - pre_dt;
+                if hitsWall
+                    disp('collide!');
+
+                    % parallel velocity is retained
+                    %
+                    % perpendicular velocity goes to zero plus some noise in
+                    % the opposite direction
+                    % potential distance from wall to simulate "bounce"
+                    %
+                    % compute force (acceleration) felt by robot
+
+                    if obj.x(4) ~= 0
+                        pre_dt = (collision_loc(1) - obj.x(1))/obj.x(4);
+                        post_dt = obj.dt - pre_dt;
+                    else
+                        pre_dt = (collision_loc(2) - obj.x(2))/obj.x(5);
+                        post_dt = obj.dt - pre_dt;
+                    end
+
+                    %disp(wall_normal)
+                    %disp(obj.x(4:5))
+                    %disp(dot(wall_normal, obj.x(4:5)))
+                    v_perp = wall_normal * dot(wall_normal, obj.x(4:5));
+                    v_paral = obj.x(4:5) - v_perp;
+
+                    v_ball_contact = obj.x(6)*obj.R*[wall_normal(2); -wall_normal(1)];
+
+                    f_wall = -obj.mu * (v_ball_contact + v_paral);
+
+                    post_v_paral = v_paral + obj.dt * f_wall/obj.m;
+
+                    post_omega = obj.x(6) - obj.dt * obj.R*(wall_normal(1)*f_wall(2) - wall_normal(2)*f_wall(1))/obj.I;
+
+                    bounce_coeff = randn/30; % std dev is approx. 0.001
+
+                    while abs(bounce_coeff) > 1
+                        bounce_coeff = randn/30;
+                    end
+                    post_v_perp = -1*(1 - abs(bounce_coeff))*v_perp;
+
+                    acc_perp = (post_v_perp-v_perp)/obj.dt; % momentum change in perp direction
+                    acc_paral = f_wall/obj.m;
+                    ang_acc = - obj.R*(wall_normal(1)*f_wall(2) - wall_normal(2)*f_wall(1))/obj.I;
+
+                    acc = acc_perp + acc_paral;
+
+                    %disp(x_next(1:2))
+                    %disp(collision_loc)
+                    %disp(post_v_perp)
+                    %disp(v_paral)
+                    x_next(4:5) = post_v_perp + post_v_paral;
+                    x_next(6) = post_omega;
+                    x_next(1:2) = collision_loc + post_dt * x_next(4:5);
+
                 else
-                    pre_dt = (collision_loc(2) - obj.x(2))/obj.x(5);
-                    post_dt = obj.dt - pre_dt;
+                    acc = (x_next(4:5) - obj.x(4:5))/obj.dt;
                 end
-
-                %disp(wall_normal)
-                %disp(obj.x(4:5))
-                %disp(dot(wall_normal, obj.x(4:5)))
-                v_perp = wall_normal * dot(wall_normal, obj.x(4:5));
-                v_paral = obj.x(4:5) - v_perp;
-
-                v_ball_contact = obj.x(6)*obj.R*[wall_normal(2); -wall_normal(1)];
-
-                f_wall = -obj.mu * (v_ball_contact + v_paral);
-
-                post_v_paral = v_paral + obj.dt * f_wall/obj.m;
-
-                post_omega = obj.x(6) - obj.dt * obj.R*(wall_normal(1)*f_wall(2) - wall_normal(2)*f_wall(1))/obj.I;
-
-                bounce_coeff = randn/30; % std dev is approx. 0.001
-
-                while abs(bounce_coeff) > 1
-                    bounce_coeff = randn/30;
-                end
-                post_v_perp = -1*(1 - abs(bounce_coeff))*v_perp;
-
-                acc_perp = (post_v_perp-v_perp)/obj.dt; % momentum change in perp direction
-                acc_paral = f_wall/obj.m;
-                ang_acc = - obj.R*(wall_normal(1)*f_wall(2) - wall_normal(2)*f_wall(1))/obj.I;
-                
-                acc = acc_perp + acc_paral;
-
-                %disp(x_next(1:2))
-                %disp(collision_loc)
-                %disp(post_v_perp)
-                %disp(v_paral)
-                x_next(4:5) = post_v_perp + post_v_paral;
-                x_next(6) = post_omega;
-                x_next(1:2) = collision_loc + post_dt * x_next(4:5);
-                
-            else
-                acc = (x_next(4:5) - obj.x(4:5))/obj.dt;
             end
 
             obj.iter = obj.iter + 1;
@@ -146,7 +152,7 @@ classdef TruthSim
             b_w = x_next(9);
             th = x_next(3);
             dcm = [cos(th), sin(th);
-                   -sin(th), cos(th)];
+                -sin(th), cos(th)];
             acc_meas = dcm*acc + b_a;
             gyro_meas = x_next(6) + b_w;
 
@@ -164,7 +170,7 @@ classdef TruthSim
             state_shape = size(x);
             dx = zeros(state_shape);
             dx(1:3) = x(4:6);
-    
+
             %dx(4) = x(6)*x(5) + u(1)/obj.m;
             %dx(5) = -x(6)*x(4) + u(2)/obj.m;
             dx(4:5) = u(1:2)/obj.m;
@@ -179,7 +185,7 @@ classdef TruthSim
             obj.M_int = obj.Interface.getControlMoment();
 
         end
-    
+
         function obj = compute_external_wrench(obj)
             % empty
         end
@@ -222,7 +228,7 @@ classdef TruthSim
         % collision model assuming zero control input used for the filter
         function x_next = collision_model(x,params)
             u = zeros(3,1);
-            
+
             x_orig = x;
             is_valid = false;
             while ~is_valid
@@ -233,7 +239,8 @@ classdef TruthSim
 
             x_next = TruthSim.point_model(x,u,params);
             %x_next = x_next + mvnrnd(zeros(size(x)), params.Q_robot, 1)';
-            while ~params.Map.is_valid_loc(x_next(1:2),params.R)
+            num_tries = 0; tries_thresh = 10;
+            while ~params.Map.is_valid_loc(x_next(1:2),params.R) && num_tries < tries_thresh
                 [hitsWall, wall_normal, collision_loc] = params.Map.hit_wall(x(1:2), x_next(1:2), params.R);
                 if hitsWall
                     if x(4) ~= 0
@@ -265,22 +272,27 @@ classdef TruthSim
                     acc_perp = (post_v_perp-v_perp)/params.dt; % momentum change in perp direction
                     acc_paral = f_wall/params.m;
                     ang_acc = - params.R*(wall_normal(1)*f_wall(2) - wall_normal(2)*f_wall(1))/params.I;
-                    
+
                     %acc = acc_perp + acc_paral;
 
                     x_next(4:5) = post_v_perp + post_v_paral;
                     x_next(6) = post_omega;
                     x_next(1:2) = collision_loc + post_dt * x_next(4:5);
-                    
+
                 else
                     %acc = (x_next(4:5) - x(4:5))/params.dt;
                 end
-                if any(x_next(1:2)>10) || any(x_next(1:2)<0) 
-                    keyboard
+
+                num_tries = num_tries+1;
+                if num_tries>=tries_thresh
+                    x_next = x;
                 end
-                if any(x(1:2)>10) || any(x(1:2)<0) 
-                    keyboard
-                end
+            end
+            if any(x_next(1:2)>10) || any(x_next(1:2)<0) 
+                keyboard
+            end
+            if any(x(1:2)>10) || any(x(1:2)<0) 
+                keyboard
             end
         end
     end

@@ -73,7 +73,7 @@ classdef EKF < matlab.mixin.Copyable % hopefully not a handle will make this eas
                 
                 if any(K_t*innov>10)
                     % kill particle?
-                    fprintf('killing particle %i \n',obj.num);
+                    %fprintf('killing particle %i \n',obj.num);
                     obj.p_yj = 0;
                     continue
                     %keyboard
