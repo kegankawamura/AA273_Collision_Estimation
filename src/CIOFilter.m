@@ -98,7 +98,7 @@ classdef CIOFilter < handle
                         obj.pf.particles.X(:,i) = obj.pf.Mu;
                     end
                 end
-                keyboard
+                %keyboard
             end
             W_hat = W_bar.*obj.pf.particles.W;
             W_t = W_hat/sum(W_hat);

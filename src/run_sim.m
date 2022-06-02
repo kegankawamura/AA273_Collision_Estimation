@@ -8,11 +8,8 @@ dt = robot_params.dt;
 
 iter = tf/dt;
 
-% Define map coordinates
-map_coord = [   0,  0;
-               3,  2;
-               5, 5;
-                3, 4];
+[pose_0,map_coord] = maps('asym');
+          
 
 % output system
 %define_system
@@ -23,11 +20,10 @@ discrete = CPUSim(dt, iter);
 
 % create filter
 mu_0 = zeros(6,1);
-mu_0(1:2) = [4;4];
-mu_0(3:4) = [2;0];
-mu_0(5:6) = [pi/4;0];
+mu_0 = pose_0;
 sigma = eye(6);
-filter = setup_filter(robot_params,truth.Map,mu_0,sigma);
+%filter = setup_filter(robot_params,truth.Map,mu_0,sigma);
+filter = setup_filter(robot_params,truth.Map);
 discrete.filter = filter;
 
 inter = RobotInterface();
@@ -35,8 +31,9 @@ truth.Interface = inter;
 discrete.Interface = inter;
 
 
+bias_0 = [0.1;0.1;0.2];
 % Set custom initial conditions
-truth = truth.set_initial_state([4, 4, pi/4, 2, 0, 0, 0.5,0.5,0.2]);
+truth = truth.set_initial_state([pose_0; bias_0 ]);
 Q = zeros(9);
 Q = blkdiag( zeros(3), dt*0.01*eye(2), dt*0.001, 0.3*eye(3) );
 %Q(4:5, 4:5) = dt * 0.01 * eye(2);
@@ -52,7 +49,7 @@ truth = truth.setProcessNoise(zeros(9,1), Q);
 % 9    b_w       gyro bias
 mu_0 = zeros(9,1);
 %mu_0 = [5;5;2;0;pi/4;0;0;0;0;0;0];
-mu_0(1:2) = [5;5];
+mu_0(1:2) = [4;3];
 mu_0(3:4) = [2;0];
 mu_0(5:6) = [pi/4;0];
 

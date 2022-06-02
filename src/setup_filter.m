@@ -14,7 +14,7 @@ function [filter] = setup_filter(robot_params,map,mu_robot,sigma_robot)
     I = robot_params.I;
 
     % made up numbers
-    Q_robot = dt*blkdiag(0.5*eye(2), 0.5, 0.2*eye(2), 0.2);
+    Q_robot = dt*blkdiag(1.25*eye(2), 0.25, 0.1*eye(2), 0.1);
     Q_omega_bounce = 0.3;
 
     Q_ekf = blkdiag(2*eye(2),2,eye(2)*3);
@@ -78,7 +78,7 @@ function [particles] = initialize_filter_uniform(filter,mu,sigma,map,N,robot_par
     P = [rand(N,2).*span + bounding_box(1,:)]';
 
     for i=1:N
-        while ~map.is_inside(P(:,i))
+        while ~map.is_valid_loc(P(:,i),robot_params.R)
             P(:,i) = [rand(1,2).*span + bounding_box(1,:)]';
         end
     end
