@@ -45,7 +45,7 @@ classdef ObstacleMap < handle
                 p = [P_h(1)/P_h(3); P_h(2)/P_h(3)];
 
                 A = [l(1) l(2);
-                     ray(1) ray(2)];
+                    ray(1) ray(2)];
 
                 b1 = [R*denom - l(3); -ray(3)];
                 b2 = [-R*denom - l(3); -ray(3)];
@@ -73,8 +73,8 @@ classdef ObstacleMap < handle
                         closest_wall = i;
                     end
                 end
-             end
-            
+            end
+
             wall_normal = [0; 0];
             p_rollback = [NaN;NaN];
             if hitsWall
@@ -94,19 +94,18 @@ classdef ObstacleMap < handle
                 wall_normal = sgn * wall_normal/norm(wall_normal);
 
                 A = [a b;
-                     ray(1) ray(2)];
+                    ray(1) ray(2)];
 
                 b1 = [R*denom - c; -ray(3)];
                 b2 = [-R*denom - c; -ray(3)];
-                
+
                 p_rollback = A\b1;
                 if ~obj.num_between(p_rollback(1), r_pre(1), closest_intersection(1)) || ...
-                    ~obj.num_between(p_rollback(2), r_pre(2), closest_intersection(2))
+                        ~obj.num_between(p_rollback(2), r_pre(2), closest_intersection(2))
                     p_rollback = A\b2;
                 end
 
             end
-
 
             collision_loc = p_rollback;
             wall_normal = reshape(wall_normal, 2,1);
@@ -130,7 +129,7 @@ classdef ObstacleMap < handle
                 l = obj.coeff(i,:);
                 %disp('Loop')
                 %disp(l)
-%                C(1,:) = obj.line_c(i);
+                %                C(1,:) = obj.line_c(i);
                 P_h = cross(l, ray);
                 %disp(P_h)
                 p = [P_h(1)/P_h(3), P_h(2)/P_h(3)];
@@ -181,11 +180,15 @@ classdef ObstacleMap < handle
             end
         end
 
-        % placeholder
+        function valid = is_valid_loc(obj,r,R)
+            valid = obj.is_inside(r)  &&  ~obj.inside_wall(r,R);
+        end
+
         function inside = is_inside(obj, r)
             count_intersection = 0;
             ray = zeros(1,3);
             ray(1:2) = randn(1,2);
+            ray(1:2) = [0.49,0.58];
             ray(3) = -1 * ray(1:2) * reshape(r,[2,1]);
 
             for i = 1:length(obj.coeff)
@@ -204,10 +207,33 @@ classdef ObstacleMap < handle
 
             if mod(count_intersection, 2) == 0
                 inside = false;
-
             end
         end
 
+
+function in_wall = inside_wall(obj, r, R)
+            r_h = [r(1); r(2); 1];
+            in_wall = false;
+            for i = 1:length(obj.coeff)
+                l = obj.coeff(i,:);
+                a = l(1);
+                b = l(2);
+                c = l(3);
+                denom = sqrt(a^2 + b^2);
+                d = abs(l*r_h)/denom;
+
+                xp = (b^2*r(1) - a*b*r(2) - a*c)/denom^2;
+                yp = (a^2*r(2) - a*b*r(1) - b*c)/denom^2;
+
+                ipp = mod(i, length(obj.coeff)) + 1;
+                if d < R && ...
+                        obj.num_between(xp, obj.corners(i,1), obj.corners(ipp,1)) && ...
+                        obj.num_between(yp, obj.corners(i,2), obj.corners(ipp,2)) 
+                    in_wall = true;
+                    break
+                end
+            end
+        end
         function is_between = num_between(obj, x, a, b)
             is_between = (x >= a && x <= b) || (x <= a && x >= b);
         end

@@ -223,49 +223,64 @@ classdef TruthSim
         function x_next = collision_model(x,params)
             u = zeros(3,1);
             
+            x_orig = x;
+            is_valid = false;
+            while ~is_valid
+                w = mvnrnd(zeros(size(x)), params.Q_robot, 1)';
+                x = x_orig+w;
+                is_valid = params.Map.is_valid_loc(x(1:2),params.R);
+            end
+
             x_next = TruthSim.point_model(x,u,params);
-            x_next = x_next + mvnrnd(zeros(size(x)), params.Q_robot, 1)';
-    
-            [hitsWall, wall_normal, collision_loc] = params.Map.hit_wall(x(1:2), x_next(1:2), params.R);
-            if hitsWall
-                if x(4) ~= 0
-                    pre_dt = (collision_loc(1) - x(1))/x(4);
-                    post_dt = params.dt - pre_dt;
+            %x_next = x_next + mvnrnd(zeros(size(x)), params.Q_robot, 1)';
+            while ~params.Map.is_valid_loc(x_next(1:2),params.R)
+                [hitsWall, wall_normal, collision_loc] = params.Map.hit_wall(x(1:2), x_next(1:2), params.R);
+                if hitsWall
+                    if x(4) ~= 0
+                        pre_dt = (collision_loc(1) - x(1))/x(4);
+                        post_dt = params.dt - pre_dt;
+                    else
+                        pre_dt = (collision_loc(2) - x(2))/x(5);
+                        post_dt = params.dt - pre_dt;
+                    end
+
+                    v_perp = wall_normal * dot(wall_normal, x(4:5));
+                    v_paral = x(4:5) - v_perp;
+
+                    v_ball_contact = x(6)*params.R*[wall_normal(2); -wall_normal(1)];
+
+                    f_wall = -params.mu * (v_ball_contact + v_paral);
+
+                    post_v_paral = v_paral + params.dt * f_wall/params.m;
+
+                    post_omega = x(6) - params.dt * params.R*(wall_normal(1)*f_wall(2) - wall_normal(2)*f_wall(1))/params.I;
+
+                    bounce_coeff = randn/5; % greater than in truth
+
+                    while abs(bounce_coeff) > 1
+                        bounce_coeff = randn/5;
+                    end
+                    post_v_perp = -1*(1 - abs(bounce_coeff))*v_perp;
+
+                    acc_perp = (post_v_perp-v_perp)/params.dt; % momentum change in perp direction
+                    acc_paral = f_wall/params.m;
+                    ang_acc = - params.R*(wall_normal(1)*f_wall(2) - wall_normal(2)*f_wall(1))/params.I;
+                    
+                    %acc = acc_perp + acc_paral;
+
+                    x_next(4:5) = post_v_perp + post_v_paral;
+                    x_next(6) = post_omega;
+                    x_next(1:2) = collision_loc + post_dt * x_next(4:5);
+                    
                 else
-                    pre_dt = (collision_loc(2) - x(2))/x(5);
-                    post_dt = params.dt - pre_dt;
+                    %acc = (x_next(4:5) - x(4:5))/params.dt;
                 end
-
-                v_perp = wall_normal * dot(wall_normal, x(4:5));
-                v_paral = x(4:5) - v_perp;
-
-                v_ball_contact = x(6)*params.R*[wall_normal(2); -wall_normal(1)];
-
-                f_wall = -params.mu * (v_ball_contact + v_paral);
-
-                post_v_paral = v_paral + params.dt * f_wall/params.m;
-
-                post_omega = x(6) - params.dt * params.R*(wall_normal(1)*f_wall(2) - wall_normal(2)*f_wall(1))/params.I;
-
-                bounce_coeff = randn/5; % greater than in truth
-
-                while abs(bounce_coeff) > 1
-                    bounce_coeff = randn/5;
+                if any(x_next(1:2)>10) || any(x_next(1:2)<0) 
+                    keyboard
                 end
-                post_v_perp = -1*(1 - abs(bounce_coeff))*v_perp;
-
-                acc_perp = (post_v_perp-v_perp)/params.dt; % momentum change in perp direction
-                acc_paral = f_wall/params.m;
-                ang_acc = - params.R*(wall_normal(1)*f_wall(2) - wall_normal(2)*f_wall(1))/params.I;
-                
-                %acc = acc_perp + acc_paral;
-
-                x_next(4:5) = post_v_perp + post_v_paral;
-                x_next(6) = post_omega;
-                x_next(1:2) = collision_loc + post_dt * x_next(4:5);
-                
-            else
-                %acc = (x_next(4:5) - x(4:5))/params.dt;
+                if any(x(1:2)>10) || any(x(1:2)<0) 
+                    keyboard
+                end
             end
         end
     end

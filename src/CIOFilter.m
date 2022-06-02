@@ -114,6 +114,9 @@ classdef CIOFilter < handle
             plot( [obj.pf.system.params.Map.corners(:,1);obj.pf.system.params.Map.corners(1,1)],...
                 [obj.pf.system.params.Map.corners(:,2);obj.pf.system.params.Map.corners(1,2)]);
 
+                if any(obj.pf.particles.X(1:2)>10) || any(obj.pf.particles.X(1:2)<0) 
+                    keyboard
+                end
 
             obj.F_hat_hist(:,end+1) = F;
             obj.M_hat_hist(:,end+1) = M;
