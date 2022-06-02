@@ -56,6 +56,7 @@ classdef ParticleFilter < handle
             obj.last_step = 'predict';
         end
 
+        % unused function
         function [] = update(obj,u_t,y_t)
             system = obj.system;
             params = system.params;

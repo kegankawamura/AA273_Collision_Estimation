@@ -20,10 +20,11 @@ classdef CIOFilter < handle
 
     end
     methods
-        function obj = CIOFilter(pf_system,ekf_system)
+        function obj = CIOFilter(pf_system,ekf_system,robot_params)
             obj.pf_system = pf_system;
             obj.ekf_system = ekf_system;
             obj.pf = ParticleFilter(system);
+            obj.params = robot_params;
         end
         % initializes with prior particles of robot pose and mean+sigma of bias states  and drift rates
         % particles are struct particles.X, particles.W
@@ -35,12 +36,15 @@ classdef CIOFilter < handle
         end
 
         function [] = predict(obj,u_t)
-            % should really use a transition model prediction instead
+            obj.ekfs(1).system.params.X = obj.pf.particles.X_prev;
             obj.pf.predict(u_t);
             obj.ekfs.predict(u_t);
             % give ekfs the list of particle states 
             % which they should all share supposedly
             obj.ekfs(1).system.params.X = obj.pf.particles.X;
+            obj.ekfs(1).system.params.F_hat = obj.F_hat_hist(:,end);
+            obj.ekfs(1).system.params.M_hat = obj.M_hat_hist(:,end);
+
         end
 
         % replaces the particle filter update step
@@ -51,7 +55,7 @@ classdef CIOFilter < handle
             K_F = obj.params.K_F;
             K_M = obj.params.K_M;
             m = obj.params.m;
-            I_z = obj.params.I_z;
+            I_z = obj.params.I;
             dt = obj.params.dt;
             F_hat_prev = obj.F_hat_hist(:,end);
             M_hat_prev = obj.M_hat_hist(:,end);
@@ -64,9 +68,11 @@ classdef CIOFilter < handle
             % updating ekfs need a way to index ekfs
             nums = num2cell([1:obj.N]);
             [obj.ekfs.num] = deal(nums{:});
+            % obj.ekfs.F_hat_prev = F_hat_prev;
             obj.ekfs.update(u_t,y_t_aug);
             
             % particle filter update a-la fast slam
+            % idea: use F and M and the wall normals from collisions as additional weighting, since force estimates dont work super well in ekf
             W_bar = prod(reshape([obj.particles.ekf.p_yj],[],obj.N));
             W_hat = W_bar.*obj.particles.W;
             W_t = W_hat/sum(W_hat);

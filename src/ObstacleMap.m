@@ -176,6 +176,11 @@ classdef ObstacleMap
             end
         end
 
+        % placeholder
+        function [ptIsInside] = is_inside(obj,p)
+            ptIsInside = true;
+        end
+
         function is_between = num_between(obj, x, a, b)
             is_between = (x >= a && x <= b) || (x <= a && x >= b);
         end

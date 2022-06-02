@@ -27,6 +27,7 @@ classdef TruthSim
         F_ext
         M_int
         M_ext
+        mu
     end
 
     methods
@@ -104,21 +105,32 @@ classdef TruthSim
                 v_perp = wall_normal * dot(wall_normal, obj.x(4:5));
                 v_paral = obj.x(4:5) - v_perp;
 
-                obj.x(6)
+                v_ball_contact = obj.x(6)*obj.R*[wall_normal(2); -wall_normal(1)];
+
+                f_wall = -obj.mu * (v_ball_contact + v_paral);
+
+                post_v_paral = v_paral + obj.dt * f_wall/obj.m;
+
+                post_omega = obj.x(6) - obj.dt * obj.R*(wall_normal(1)*f_wall(2) - wall_normal(2)*f_wall(1))/obj.I;
 
                 bounce_coeff = randn/30; % std dev is approx. 0.001
 
-                post_v_perp = -1*abs(bounce_coeff)*v_perp;
+                while abs(bounce_coeff) > 1
+                    bounce_coeff = randn/30;
+                end
+                post_v_perp = -1*(1 - abs(bounce_coeff))*v_perp;
 
-                acc = (post_v_perp-v_perp)/obj.dt; % momentum change in perp direction
-
+                acc_perp = (post_v_perp-v_perp)/obj.dt; % momentum change in perp direction
+                acc_paral = f_wall/obj.m;
+                ang_acc = - obj.R*(wall_normal(1)*f_wall(2) - wall_normal(2)*f_wall(1))/obj.I;
 
                 %disp(x_next(1:2))
                 %disp(collision_loc)
                 %disp(post_v_perp)
                 %disp(v_paral)
-                x_next(4:5) = post_v_perp + v_paral;
-                x_next(1:2) = collision_loc + post_dt * x_next(4:5) + wall_normal*1e-6; % add bias to prevent clipping through wall
+                x_next(4:5) = post_v_perp + post_v_paral;
+                x_next(6) = post_omega;
+                x_next(1:2) = collision_loc + post_dt * x_next(4:5);
                 
             else
                 acc = (x_next(4:5) - obj.x(4:5))/obj.dt;
@@ -130,13 +142,13 @@ classdef TruthSim
             b_a = x_next(7:8);
             b_w = x_next(9);
             th = x_next(3);
-            R = [cos(th), sin(th);
+            dcm = [cos(th), sin(th);
                    -sin(th), cos(th)];
-            acc_meas = R*acc + b_a;
+            acc_meas = dcm*acc + b_a;
             gyro_meas = x_next(6) + b_w;
 
             obj.Interface.setMeasAccel(acc_meas);
-            obj.Interface.setMeasAngRate(gyro_meas);.
+            obj.Interface.setMeasAngRate(gyro_meas);
             obj.meas_hist(:,obj.iter) = [acc_meas; gyro_meas];
 
             obj.x = x_next;
@@ -150,8 +162,9 @@ classdef TruthSim
             dx = zeros(state_shape);
             dx(1:3) = x(4:6);
     
-            dx(4) = x(6)*x(5) + u(1)/obj.m;
-            dx(5) = -x(6)*x(4) + u(2)/obj.m;
+            %dx(4) = x(6)*x(5) + u(1)/obj.m;
+            %dx(5) = -x(6)*x(4) + u(2)/obj.m;
+            dx(4:5) = u(1:2)/obj.m;
             dx(6) = u(3)/obj.I;
             dx(7:8) = x(7:8)*(obj.alpha_b-1);
             dx(9) = x(9)*(obj.alpha_w-1);
@@ -176,16 +189,18 @@ classdef TruthSim
             %obj.Q(obj.StateDim/2+1:obj.StateDim, obj.StateDim/2+1:obj.StateDim) = obj.dt * 0.1 * eye(obj.StateDim/2);
             obj.Q = obj.dt*blkdiag( zeros(3), 0.1*eye(3), 1*eye(2), 0.5);
 
-            obj.m = 4.036;
-            obj.I = 0.09;
-            obj.R = 0.2; %m
-            obj.alpha_b = 0.3;
-            obj.alpha_w = 0.15;
+            make_robot_params;
+            obj.m = robot_params.m;
+            obj.I = robot_params.I;
+            obj.R = robot_params.R;
+            obj.alpha_b = robot_params.alpha_b;
+            obj.alpha_w = robot_params.alpha_w;
             obj.F_int = zeros(2,1);
             obj.F_ext = zeros(2,1);
             obj.M_int = 0;
             obj.M_ext = 0;
 
+            obj.mu = 0.1;
             %% propeller properties
             %obj.Cq = 0.008;
             %obj.D = 0.2286;
