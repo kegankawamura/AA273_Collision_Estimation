@@ -59,13 +59,16 @@ classdef ObstacleMap < handle
 
                     hitsWall = true;
                     count_intersection = count_intersection + 1;
-                    disp(p)
-                    disp(r_pre)
-                    disp(r)
-                    disp(closest_intersection)
-                    disp(norm(p-r_pre))
-                    disp(norm(closest_intersection - r_pre))
+                    %disp(p)
+                    %disp(r_pre)
+                    %disp(r)
+                    %disp(closest_intersection)
+                    %disp(norm(p-r_pre))
+                    %disp(norm(closest_intersection - r_pre))
                     if norm(p-r_pre) <= norm(closest_intersection - r_pre)
+                        closest_intersection = p;
+                        closest_wall = i;
+                    elseif closest_intersection ==r
                         closest_intersection = p;
                         closest_wall = i;
                     end
@@ -75,8 +78,8 @@ classdef ObstacleMap < handle
             wall_normal = [0; 0];
             p_rollback = [NaN;NaN];
             if hitsWall
-                disp('Hit Wall')
-                disp(closest_wall)
+                %disp('Hit Wall')
+                %disp(closest_wall)
                 r_h = [r(1), r(2), 1];
                 a = obj.coeff(closest_wall,1);
                 b = obj.coeff(closest_wall,2);
@@ -137,7 +140,7 @@ classdef ObstacleMap < handle
                 %disp(obj.corners(i,:))
                 if p(1) <= r(1) && obj.num_between(p(1), obj.corners(i,1), obj.corners(ipp,1)) && obj.num_between(p(2), obj.corners(i,2), obj.corners(ipp,2))
                     count_intersection = count_intersection + 1;
-                    disp(i)
+                    %disp(i)
                 end
             end
 
@@ -146,7 +149,7 @@ classdef ObstacleMap < handle
             if mod(count_intersection, 2) == 0
                 hitsWall = true;
                 r_h = [r(1), r(2), 1];
-                disp(r_h)
+                %disp(r_h)
                 min_dist = realmax;
                 min_wall = 0;
                 min_dir = 0;
@@ -179,8 +182,30 @@ classdef ObstacleMap < handle
         end
 
         % placeholder
-        function [ptIsInside] = is_inside(obj,p)
-            ptIsInside = true;
+        function inside = is_inside(obj, r)
+            count_intersection = 0;
+            ray = zeros(1,3);
+            ray(1:2) = randn(1,2);
+            ray(3) = -1 * ray(1:2) * reshape(r,[2,1]);
+
+            for i = 1:length(obj.coeff)
+                l = obj.coeff(i,:);
+                P_h = cross(l, ray);
+                p = [P_h(1)/P_h(3), P_h(2)/P_h(3)];
+                ipp = mod(i, length(obj.coeff)) + 1;
+                if p(1) <= r(1) && ...
+                        obj.num_between(p(1), obj.corners(i,1), obj.corners(ipp,1)) && ...
+                        obj.num_between(p(2), obj.corners(i,2), obj.corners(ipp,2))
+                    count_intersection = count_intersection + 1;
+                end
+            end
+
+            inside = true;
+
+            if mod(count_intersection, 2) == 0
+                inside = false;
+
+            end
         end
 
         function is_between = num_between(obj, x, a, b)

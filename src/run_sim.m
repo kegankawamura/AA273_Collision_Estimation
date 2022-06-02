@@ -1,4 +1,4 @@
-
+clear;
 % Final Time
 tf = 60;
 load_robot_params;
@@ -9,7 +9,7 @@ dt = robot_params.dt;
 iter = tf/dt;
 
 % Define map coordinates
-map_coord = [   -1,  -1;
+map_coord = [   0,  0;
                10,  0;
                10, 10;
                 0, 10];
@@ -22,7 +22,12 @@ truth = TruthSim(dt, iter, map_coord);
 discrete = CPUSim(dt, iter);
 
 % create filter
-filter = setup_filter(robot_params,truth.Map);
+mu_0 = zeros(6,1);
+mu_0(1:2) = [5;5];
+mu_0(3:4) = [2;0];
+mu_0(5:6) = [pi/4;0];
+sigma = eye(6);
+filter = setup_filter(robot_params,truth.Map,mu_0,sigma);
 discrete.filter = filter;
 
 inter = RobotInterface();
@@ -61,7 +66,13 @@ sigma_0(9:11,9:11) = 0.1*dt*eye(3);
 
 
 % Simulate
+tic;
 for i = 1:iter
+    if ~mod(i,10)
+        t_elapse = toc;
+        fprintf('completed %i / %i in %.1f sec \n',i,iter,t_elapse);
+        tic;
+    end
     t = dt * i;
     truth = truth.propagate_one_timestep(t);
     discrete = discrete.run_one_timestep(t);

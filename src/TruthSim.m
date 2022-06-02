@@ -82,6 +82,7 @@ classdef TruthSim
             % wall.
 
             if hitsWall
+                disp('collide!');
 
                 % parallel velocity is retained
                 %
@@ -123,6 +124,8 @@ classdef TruthSim
                 acc_perp = (post_v_perp-v_perp)/obj.dt; % momentum change in perp direction
                 acc_paral = f_wall/obj.m;
                 ang_acc = - obj.R*(wall_normal(1)*f_wall(2) - wall_normal(2)*f_wall(1))/obj.I;
+                
+                acc = acc_perp + acc_paral;
 
                 %disp(x_next(1:2))
                 %disp(collision_loc)
@@ -178,7 +181,7 @@ classdef TruthSim
         end
     
         function obj = compute_external_wrench(obj)
-            
+            % empty
         end
 
 
@@ -207,5 +210,63 @@ classdef TruthSim
             %obj.rho_air = 1.18;
         end
 
+    end
+    methods (Static)
+        function X_t1 = point_model(X_t,u,params)
+            dt = params.dt;
+            F = u(1:2); M = u(3);
+            X_t1(1:3,:) = X_t(1:3,:) + dt*X_t(4:6,:);
+            X_t1(4:5,:) = X_t(4:5,:) + dt*F/params.m;
+            X_t1(6,:) = X_t(6,:) + dt*M/params.I;
+        end
+        % collision model assuming zero control input used for the filter
+        function x_next = collision_model(x,params)
+            u = zeros(3,1);
+            
+            x_next = TruthSim.point_model(x,u,params);
+            x_next = x_next + mvnrnd(zeros(size(x)), params.Q_robot, 1)';
+    
+            [hitsWall, wall_normal, collision_loc] = params.Map.hit_wall(x(1:2), x_next(1:2), params.R);
+            if hitsWall
+                if x(4) ~= 0
+                    pre_dt = (collision_loc(1) - x(1))/x(4);
+                    post_dt = params.dt - pre_dt;
+                else
+                    pre_dt = (collision_loc(2) - x(2))/x(5);
+                    post_dt = params.dt - pre_dt;
+                end
+
+                v_perp = wall_normal * dot(wall_normal, x(4:5));
+                v_paral = x(4:5) - v_perp;
+
+                v_ball_contact = x(6)*params.R*[wall_normal(2); -wall_normal(1)];
+
+                f_wall = -params.mu * (v_ball_contact + v_paral);
+
+                post_v_paral = v_paral + params.dt * f_wall/params.m;
+
+                post_omega = x(6) - params.dt * params.R*(wall_normal(1)*f_wall(2) - wall_normal(2)*f_wall(1))/params.I;
+
+                bounce_coeff = randn/5; % greater than in truth
+
+                while abs(bounce_coeff) > 1
+                    bounce_coeff = randn/5;
+                end
+                post_v_perp = -1*(1 - abs(bounce_coeff))*v_perp;
+
+                acc_perp = (post_v_perp-v_perp)/params.dt; % momentum change in perp direction
+                acc_paral = f_wall/params.m;
+                ang_acc = - params.R*(wall_normal(1)*f_wall(2) - wall_normal(2)*f_wall(1))/params.I;
+                
+                %acc = acc_perp + acc_paral;
+
+                x_next(4:5) = post_v_perp + post_v_paral;
+                x_next(6) = post_omega;
+                x_next(1:2) = collision_loc + post_dt * x_next(4:5);
+                
+            else
+                %acc = (x_next(4:5) - x(4:5))/params.dt;
+            end
+        end
     end
 end
