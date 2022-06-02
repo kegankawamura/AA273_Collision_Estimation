@@ -36,7 +36,7 @@ classdef ParticleFilter < handle
             obj.particles = particles;
             W = particles.W; X = particles.X;
             obj.Mu = sum(W.*X,2);
-            obj.Sigma = (W.*(X-mu))*(X-mu)';
+            obj.Sigma = (W.*(X-obj.Mu))*(X-obj.Mu)';
         end
 
         function [] = predict(obj,u_t)

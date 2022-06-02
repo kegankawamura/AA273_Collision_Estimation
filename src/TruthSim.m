@@ -189,7 +189,7 @@ classdef TruthSim
             %obj.Q(obj.StateDim/2+1:obj.StateDim, obj.StateDim/2+1:obj.StateDim) = obj.dt * 0.1 * eye(obj.StateDim/2);
             obj.Q = obj.dt*blkdiag( zeros(3), 0.1*eye(3), 1*eye(2), 0.5);
 
-            make_robot_params;
+            load_robot_params;
             obj.m = robot_params.m;
             obj.I = robot_params.I;
             obj.R = robot_params.R;

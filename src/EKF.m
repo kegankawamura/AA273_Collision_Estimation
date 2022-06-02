@@ -1,4 +1,4 @@
-classdef EKF %< handle % hopefully not a handle will make this easier
+classdef EKF < matlab.mixin.Copyable % hopefully not a handle will make this easier % lol actually its just terrible
     properties
         type = 'EKF'
         system
@@ -22,12 +22,11 @@ classdef EKF %< handle % hopefully not a handle will make this easier
         end
 
         function [] = initialize(obj,mu_0, sigma_0)
-            obj.Mu = mu_0;
-            obj.Sigma = sigma_0;
-            obj.mu_current = mu_0;
-            obj.sigma_current = sigma_0;
-
-            system = obj.system;
+            [obj.Mu] = deal(mu_0);
+            [obj.Sigma] = deal(sigma_0);
+            [obj.mu_current] = deal(mu_0);
+            [obj.sigma_current] = deal(sigma_0);
+            %system = obj.system;
         end
         function [mu_p,sigma_p] = predict(obj,u_t)
             system = obj.system;

@@ -22,25 +22,25 @@ function [filter] = setup_filter(robot_params,map)
         'm',m,...
         'I',I,...
         'Q_robot',Q_robot,...
-        'Q_omega_bounce',Q_omega_bounce,...
+        'Q_omega_bounce',Q_omega_bounce ...
         );
 
     pf_system = struct('params',pf_params,...
-        'transition',@trans_model,...
+        'transition',@trans_model ...
         );
 
-    ekf_system = struct('params',params,...
+    ekf_system = struct('params',pf_params,...
         'dyn',@dyn_ekf,...
         'meas',@meas_ekf,...
         'A',@dyn_jac_ekf,...
         'C',@meas_jac_ekf,...
         'Qmodel',Q_ekf,...
-        'Rmodel',R_ekf,...
+        'Rmodel',R_ekf ...
         );
     ekf_system = EKFSystem(ekf_system);
 
     filter = CIOFilter(pf_system,ekf_system,robot_params);
-    initialize_filter_uniform(filter,zeros(5,1),sigma_0_ekf);
+    initialize_filter_uniform(filter,zeros(5,1),sigma_0_ekf,map,N,robot_params);
 end
 
 % initialize filter with uniform particles distributed in the map
@@ -59,7 +59,7 @@ function [particles] = initialize_filter_uniform(filter,mu,sigma,map,N,robot_par
     th = [2*(0.5-rand(1,N))] * pi;
 
     X = [P;th;V;om];
-    particles = struct('X',X,'W',ones*1/N);
+    particles = struct('X',X,'W',ones(1,N)*1/N);
 
     filter.initialize(particles,mu,sigma);
 end
@@ -70,7 +70,7 @@ function [X_t1s] = trans_model(X_ts,u_t,params)
     dt = params.dt;
 
     % pass through point mass dynamics and gaussian noise
-    w = mvnrnd(zeros(size(X_ts(:,1))),params.Q,size(X_ts(1,:)))';
+    w = mvnrnd(zeros(size(X_ts(:,1))),params.Q_robot,size(X_ts(1,:),2))';
     X_t1s = quad_dyn(X_ts,u_t,params) + w;
 
     % check for collision
@@ -82,13 +82,13 @@ function [X_t1s] = trans_model(X_ts,u_t,params)
         if hitsWall
             if X_prev(4) ~= 0
                 pre_dt = (collision_loc(1) - X_prev(1))/X_prev(4);
-                post_dt = obj.dt - pre_dt;
+                post_dt = params.dt - pre_dt;
             else
                 pre_dt = (collision_loc(2) - X_prev(2))/X_prev(5);
-                post_dt = obj.dt - pre_dt;
+                post_dt = params.dt - pre_dt;
             end
-            v_perp = wall_normal * (wall_normal'*X_t(4:5));
-            v_paral  = X_t(4:5)-v_perp;
+            v_perp = wall_normal * (wall_normal'*X_prev(4:5));
+            v_paral  = X_prev(4:5)-v_perp;
 
             % assumes perfect collision
             post_v_perp = -1*v_perp;
@@ -134,6 +134,7 @@ end
 
 % dynamics are a first order markov OU process
 function [X_t1] = dyn_ekf(X_t,u_t,params)
+    keyboard
     X_t1 = X_t;
     X_t1(1:2) = X_t(4)*X_t(1:2);
     X_t1(3) = X_t(5)*X_t(3);

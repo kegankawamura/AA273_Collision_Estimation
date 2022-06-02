@@ -1,7 +1,4 @@
-classdef ObstacleMap
-    %UNTITLED4 Summary of this class goes here
-    %   Detailed explanation goes here
-
+classdef ObstacleMap < handle
     properties
         corners
         coeff

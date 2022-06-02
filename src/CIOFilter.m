@@ -14,7 +14,7 @@ classdef CIOFilter < handle
         % particle filter of pose
         pf;
         % ekfs associated with each particle 
-        ekfs;
+        ekfs = EKF();
         F_hat_hist;
         M_hat_hist;
 
@@ -23,7 +23,7 @@ classdef CIOFilter < handle
         function obj = CIOFilter(pf_system,ekf_system,robot_params)
             obj.pf_system = pf_system;
             obj.ekf_system = ekf_system;
-            obj.pf = ParticleFilter(system);
+            obj.pf = ParticleFilter(pf_system);
             obj.params = robot_params;
         end
         % initializes with prior particles of robot pose and mean+sigma of bias states  and drift rates
@@ -31,12 +31,13 @@ classdef CIOFilter < handle
         function [] = initialize(obj,particles,mu,sigma)
             obj.pf.initialize_particles(particles);
             obj.N = numel(particles.W);
-            obj.ekfs(1:obj.N) = EKF(obj.ekf_system);
+            obj.ekfs(1:obj.N) = copy(EKF(obj.ekf_system));
             obj.ekfs.initialize(mu,sigma);
+            keyboard
         end
 
         function [] = predict(obj,u_t)
-            obj.ekfs(1).system.params.X = obj.pf.particles.X_prev;
+            obj.ekfs(1).system.params.X_prev = obj.pf.particles.X;
             obj.pf.predict(u_t);
             obj.ekfs.predict(u_t);
             % give ekfs the list of particle states 
@@ -70,7 +71,7 @@ classdef CIOFilter < handle
             [obj.ekfs.num] = deal(nums{:});
             % obj.ekfs.F_hat_prev = F_hat_prev;
             obj.ekfs.update(u_t,y_t_aug);
-            
+
             % particle filter update a-la fast slam
             % idea: use F and M and the wall normals from collisions as additional weighting, since force estimates dont work super well in ekf
             W_bar = prod(reshape([obj.particles.ekf.p_yj],[],obj.N));
@@ -89,3 +90,4 @@ classdef CIOFilter < handle
             obj.M_hat_hist(:,end+1) = M;
         end
     end
+end

@@ -1,9 +1,10 @@
 
 % Final Time
 tf = 60;
+load_robot_params;
 
 % Integration Timestep
-dt = 0.1;
+dt = robot_params.dt;
 
 iter = tf/dt;
 
@@ -14,12 +15,15 @@ map_coord = [   -1,  -1;
                 0, 10];
 
 % output system
-define_system
-
+%define_system
 
 % Intialize Truth and Discrete sims
 truth = TruthSim(dt, iter, map_coord);
-discrete = CPUSim(dt, iter, system);
+discrete = CPUSim(dt, iter);
+
+% create filter
+filter = setup_filter(robot_params,truth.Map);
+discrete.filter = filter;
 
 inter = RobotInterface();
 truth.Interface = inter;
@@ -27,11 +31,12 @@ discrete.Interface = inter;
 
 
 % Set custom initial conditions
-truth = truth.set_initial_state([5, 5, pi/4, 2, 0, 0]);
-Q = zeros(6);
-Q(4:5, 4:5) = dt * 0.01 * eye(2);
-Q(6,6) = dt * 0.001;
-truth = truth.setProcessNoise(zeros(6,1), Q);
+truth = truth.set_initial_state([5, 5, pi/4, 2, 0, 0, 0.5,0.5,0.2]);
+Q = zeros(9);
+Q = blkdiag( zeros(3), dt*0.01*eye(2), dt*0.001, 0.3*eye(3) );
+%Q(4:5, 4:5) = dt * 0.01 * eye(2);
+%Q(6,6) = dt * 0.001;
+truth = truth.setProcessNoise(zeros(9,1), Q);
 
 % state:
 % 1:2 [x,y,      2d position 
@@ -52,7 +57,7 @@ sigma_0(6,6) = 0.01*dt;
 sigma_0(7:8,7:8) = 0.001*dt*eye(2);
 sigma_0(9:11,9:11) = 0.1*dt*eye(3);
 
-discrete = discrete.initialize_filter(mu_0, sigma_0);
+%discrete = discrete.initialize_filter(mu_0, sigma_0);
 
 
 % Simulate

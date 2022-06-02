@@ -1,4 +1,4 @@
-classdef RobotInterface
+classdef RobotInterface < handle
     %UNTITLED4 Summary of this class goes here
     %   Detailed explanation goes here
 
@@ -33,8 +33,6 @@ classdef RobotInterface
         end
 
         function obj = setMeasAccel(obj,accel)
-            %METHOD1 Summary of this method goes here
-            %   Detailed explanation goes here
             obj.IMUAccel = accel;
         end
 
