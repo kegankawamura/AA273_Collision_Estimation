@@ -7,6 +7,9 @@ classdef ObstacleMap < handle
 
     methods
         function obj = ObstacleMap(map_corners)
+            if nargin ==0
+                return
+            end
             %UNTITLED4 Construct an instance of this class
             %   Detailed explanation goes here
             obj.corners = map_corners;
@@ -70,6 +73,7 @@ classdef ObstacleMap < handle
              end
             
             wall_normal = [0; 0];
+            p_rollback = [NaN;NaN];
             if hitsWall
                 disp('Hit Wall')
                 disp(closest_wall)
@@ -99,6 +103,7 @@ classdef ObstacleMap < handle
                 end
 
             end
+
 
             collision_loc = p_rollback;
             wall_normal = reshape(wall_normal, 2,1);

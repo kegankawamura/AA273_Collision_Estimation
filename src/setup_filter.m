@@ -21,6 +21,7 @@ function [filter] = setup_filter(robot_params,map)
         'Map',map,...
         'm',m,...
         'I',I,...
+        'R',robot_params.R,...
         'Q_robot',Q_robot,...
         'Q_omega_bounce',Q_omega_bounce ...
         );
@@ -77,7 +78,7 @@ function [X_t1s] = trans_model(X_ts,u_t,params)
     for i=1:size(X_ts,2)
         X_prev = X_ts(:,i); X_next = X_t1s(:,i);
 
-        [hitsWall, wall_normal, collision_loc] = params.Map.hit_wall(X_prev(1:2),X_next(1:2));
+        [hitsWall, wall_normal, collision_loc] = params.Map.hit_wall(X_prev(1:2),X_next(1:2),params.R);
 
         if hitsWall
             if X_prev(4) ~= 0
@@ -134,7 +135,6 @@ end
 
 % dynamics are a first order markov OU process
 function [X_t1] = dyn_ekf(X_t,u_t,params)
-    keyboard
     X_t1 = X_t;
     X_t1(1:2) = X_t(4)*X_t(1:2);
     X_t1(3) = X_t(5)*X_t(3);

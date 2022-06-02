@@ -31,9 +31,9 @@ classdef CIOFilter < handle
         function [] = initialize(obj,particles,mu,sigma)
             obj.pf.initialize_particles(particles);
             obj.N = numel(particles.W);
-            obj.ekfs(1:obj.N) = copy(EKF(obj.ekf_system));
+            obj.ekfs(obj.N) = EKF(obj.ekf_system);
+            [obj.ekfs.system] = deal(obj.ekf_system);
             obj.ekfs.initialize(mu,sigma);
-            keyboard
         end
 
         function [] = predict(obj,u_t)
