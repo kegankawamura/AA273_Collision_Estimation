@@ -71,7 +71,7 @@ classdef EKF < matlab.mixin.Copyable % hopefully not a handle will make this eas
                 mu_1 = mu_p + K_t*innov;
                 sigma_1 = sigma_p - K_t*C*sigma_p;
                 
-                if any(K_t*innov>10)
+                if any(K_t*innov>15)
                     % kill particle?
                     %fprintf('killing particle %i \n',obj.num);
                     obj.p_yj = 0;

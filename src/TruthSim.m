@@ -77,11 +77,12 @@ classdef TruthSim
             x_next = x_next + mvnrnd(obj.w_mean, obj.Q, 1)';
 
             acc = (x_next(4:5) - obj.x(4:5))/obj.dt;
+            x = obj.x;
 
             num_tries = 0; tries_thresh = 10;
             while ~obj.Map.is_valid_loc(x_next(1:2),obj.R) && num_tries < tries_thresh
                 num_tries = num_tries+1;
-                [hitsWall, wall_normal, collision_loc] = obj.Map.hit_wall(obj.x(1:2), x_next(1:2), obj.R);
+                [hitsWall, wall_normal, collision_loc] = obj.Map.hit_wall(x(1:2), x_next(1:2), obj.R);
                 % consider including obj.x, or outputting equation of wall
                 % intersection can be used to find position of robot against
                 % wall.
@@ -97,27 +98,27 @@ classdef TruthSim
                     %
                     % compute force (acceleration) felt by robot
 
-                    if obj.x(4) ~= 0
-                        pre_dt = (collision_loc(1) - obj.x(1))/obj.x(4);
+                    if x(4) ~= 0
+                        pre_dt = (collision_loc(1) - x(1))/x(4);
                         post_dt = obj.dt - pre_dt;
                     else
-                        pre_dt = (collision_loc(2) - obj.x(2))/obj.x(5);
+                        pre_dt = (collision_loc(2) - x(2))/x(5);
                         post_dt = obj.dt - pre_dt;
                     end
 
                     %disp(wall_normal)
                     %disp(obj.x(4:5))
                     %disp(dot(wall_normal, obj.x(4:5)))
-                    v_perp = wall_normal * dot(wall_normal, obj.x(4:5));
-                    v_paral = obj.x(4:5) - v_perp;
+                    v_perp = wall_normal * dot(wall_normal, x(4:5));
+                    v_paral = x(4:5) - v_perp;
 
-                    v_ball_contact = obj.x(6)*obj.R*[wall_normal(2); -wall_normal(1)];
+                    v_ball_contact = x(6)*obj.R*[wall_normal(2); -wall_normal(1)];
 
                     f_wall = -obj.mu * (v_ball_contact + v_paral);
 
                     post_v_paral = v_paral + obj.dt * f_wall/obj.m;
 
-                    post_omega = obj.x(6) - obj.dt * obj.R*(wall_normal(1)*f_wall(2) - wall_normal(2)*f_wall(1))/obj.I;
+                    post_omega = x(6) - obj.dt * obj.R*(wall_normal(1)*f_wall(2) - wall_normal(2)*f_wall(1))/obj.I;
 
                     bounce_coeff = randn/30; % std dev is approx. 0.001
 
@@ -139,7 +140,7 @@ classdef TruthSim
                     x_next(4:5) = post_v_perp + post_v_paral;
                     x_next(6) = post_omega;
                     x_next(1:2) = collision_loc + post_dt * x_next(4:5);
-
+                    x = x_next;
                 else
                     acc = (x_next(4:5) - obj.x(4:5))/obj.dt;
                 end
@@ -287,12 +288,6 @@ classdef TruthSim
                 if num_tries>=tries_thresh
                     x_next = x;
                 end
-            end
-            if any(x_next(1:2)>10) || any(x_next(1:2)<0) 
-                keyboard
-            end
-            if any(x(1:2)>10) || any(x(1:2)<0) 
-                keyboard
             end
         end
     end

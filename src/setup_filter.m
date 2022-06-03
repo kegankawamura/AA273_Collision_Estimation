@@ -165,7 +165,7 @@ function [A] = dyn_jac_ekf(X_t,u_t,params)
     A = [db_ax;db_ay;db_w;dalpha_a;dalpha_w];
 end
 
-% this seems wrong
+% this seems suspicious
 function [C] = meas_jac_ekf(X_t,u_t,params)
     df_b = [1 0 0 0 0;
             0 1 0 0 0];

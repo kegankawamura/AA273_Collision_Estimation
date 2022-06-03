@@ -8,7 +8,7 @@ dt = robot_params.dt;
 
 iter = tf/dt;
 
-[pose_0,map_coord] = maps('asym');
+[pose_0,map_coord] = maps('v');
           
 
 % output system

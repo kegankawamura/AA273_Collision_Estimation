@@ -54,6 +54,11 @@ classdef ParticleFilter < handle
 
             obj.particles.X = X_t1;
             obj.last_step = 'predict';
+            W = obj.particles.W; X = obj.particles.X;
+            mu = sum(W.*X,2);
+            sigma = (W.*(X-mu))*(X-mu)';
+            obj.Mu = mu;
+            obj.Sigma = sigma;
         end
 
         % unused function
@@ -108,11 +113,12 @@ classdef ParticleFilter < handle
             end
 
         function plt = plot_particles(obj,n1,n2,figno)
+            w  = obj.particles.W;
+            valid = w~=0;
             x1 = obj.particles.X(n1,:);
             x2 = obj.particles.X(n2,:);
-            w  = obj.particles.W;
             figure(figno);
-            plt = scatter(x1,x2,w*obj.N*50,'o','filled');
+            plt = scatter(x1(valid),x2(valid),w(valid)*obj.N*50,'o','filled');
             plt.MarkerFaceAlpha = 0.15;
             axis equal;
         end

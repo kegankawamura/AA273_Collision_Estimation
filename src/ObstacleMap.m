@@ -188,7 +188,7 @@ classdef ObstacleMap < handle
             count_intersection = 0;
             ray = zeros(1,3);
             ray(1:2) = randn(1,2);
-            ray(1:2) = [0.49,0.58];
+            %ray(1:2) = [0.49,0.58];
             ray(3) = -1 * ray(1:2) * reshape(r,[2,1]);
 
             for i = 1:length(obj.coeff)
@@ -215,6 +215,13 @@ classdef ObstacleMap < handle
             end
         end
 
+        function [P] = sample_pt(obj,mu,sigma,R)
+            P = mvnrnd(mu,sigma,1)';
+            while ~obj.is_valid_loc(P(1:2),R)
+                P = mvnrnd(mu,sigma,1)';
+            end
+            return
+        end
 
 function in_wall = inside_wall(obj, r, R)
             r_h = [r(1); r(2); 1];

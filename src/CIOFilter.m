@@ -95,7 +95,8 @@ classdef CIOFilter < handle
                         obj.ekfs(i).mu_current = obj.ekf_mu_0;
                         obj.ekfs(i).sigma_current = obj.ekf_sigma_0;
                         W_bar(i) = 1/obj.N;
-                        obj.pf.particles.X(:,i) = obj.pf.Mu;
+
+                        obj.pf.particles.X(:,i) = obj.pf_system.params.Map.sample_pt(obj.pf.Mu,obj.pf.Sigma,obj.params.R);
                     end
                 end
                 %keyboard
@@ -104,9 +105,10 @@ classdef CIOFilter < handle
             W_t = W_hat/sum(W_hat);
             obj.pf.particles.W = W_t;
             % need to create a resample condition
-            %resample = std(W_t)>0.03/sqrt(obj.N);
-            resample = true;
+            resample = std(W_t)>0.03/sqrt(obj.N);
+            %resample = true;
             if resample
+                disp('resampling!')
                 [idx_resample] = obj.pf.importance_resample();
                 % if only it were this easy
                 %obj.ekfs = obj.ekfs(idx_resample);
@@ -120,14 +122,13 @@ classdef CIOFilter < handle
                 obj.pf.plot_particles(1,2,1);
                 obj.pf_system.params.Map.plot_map();
             else
-                set(ax.Children(3),'XData',obj.pf.particles.X(1,:));
-                set(ax.Children(3),'YData',obj.pf.particles.X(2,:));
+                valid = obj.pf.particles.W~=0;
+                set(ax.Children(3),'XData',obj.pf.particles.X(1,valid));
+                set(ax.Children(3),'YData',obj.pf.particles.X(2,valid));
+                set(ax.Children(3),'SizeData',obj.pf.particles.W(valid)*obj.N*50);
                 drawnow;
             end
 
-                if any(obj.pf.particles.X(1:2)>10) || any(obj.pf.particles.X(1:2)<0) 
-                    keyboard
-                end
 
             obj.F_hat_hist(:,end+1) = F;
             obj.M_hat_hist(:,end+1) = M;
